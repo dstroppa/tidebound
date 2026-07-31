@@ -1,0 +1,22 @@
+{
+  "name": "Tidebound",
+  "tree": {
+    "$className": "DataModel",
+    "ServerScriptService": {
+      "$path": "src/server"
+    },
+    "StarterPlayer": {
+      "StarterPlayerScripts": {
+        "$path": "src/client"
+      }
+    },
+    "ReplicatedStorage": {
+      "shared": {
+        "$path": "src/shared"
+      },
+      "assets": {
+        "$path": "src/assets"
+      }
+    }
+  }
+}

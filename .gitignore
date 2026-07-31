@@ -1,0 +1,33 @@
+# Rojo build artifacts
+*.rbxlx
+*.rbxl
+build/
+out/
+
+# Rojo sourcemap
+sourcemap.json
+
+# Wally packages
+Packages/
+DevPackages/
+*.zip
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Luau LSP
+.luau-*
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
