@@ -13,6 +13,9 @@ local ProgressionMath = require(Shared.ProgressionMath)
 local Network = require(Shared.Network)
 local PlayerDataService
 local EconomyService
+local TimeService
+local WeatherService
+local QuestService
 
 type Rarity = Types.Rarity
 type RodTier = Types.RodTier
@@ -734,6 +737,19 @@ local function completeCatch(player: Player, state: PlayerFishingState)
             collection[fish.speciesId] = { caught = true, biggestWeight = math.max(previous and previous.biggestWeight or 0, weightResult.weight_kg), shiny = (previous and previous.shiny or false) or isShiny, firstCatchTimestamp = previous and previous.firstCatchTimestamp or os.time() }
             PlayerDataService:UpdateField(player, "fishCollection", collection)
     end
+    -- Report the catch to QuestService so matching daily quests advance.
+    -- Time/weather use the values captured at cast time (state._timeOfDay/_weather).
+    if QuestService then
+        QuestService:UpdateQuestProgress(player, "catch_species", 1, { speciesId = fish.speciesId, biome = fish.biome })
+        QuestService:UpdateQuestProgress(player, "catch_volume", 1, { biome = fish.biome })
+        QuestService:UpdateQuestProgress(player, "catch_rarity", 1, { rarity = fish.rarity, biome = fish.biome })
+        QuestService:UpdateQuestProgress(player, "catch_weight", 1, { weightKg = weightResult.weight_kg, biome = fish.biome })
+        QuestService:UpdateQuestProgress(player, "catch_biome_time", 1, { biome = fish.biome, timeOfDay = state._timeOfDay or "day" })
+        QuestService:UpdateQuestProgress(player, "catch_weather", 1, { weather = state._weather or "clear" })
+        if wasPerfect then
+            QuestService:UpdateQuestProgress(player, "perfect_catch", 1, {})
+        end
+    end
     -- Send result to client
     CatchOrchestrator.Client.CatchResult:Fire(player, {
         success = true,
@@ -799,6 +815,9 @@ end
 function CatchOrchestrator:KnitStart()
         PlayerDataService = Knit.GetService("PlayerDataService")
         EconomyService = Knit.GetService("EconomyService")
+        TimeService = Knit.GetService("TimeService")
+        WeatherService = Knit.GetService("WeatherService")
+        QuestService = Knit.GetService("QuestService")
         print("[CatchOrchestrator] Service started")
 
     -- Wire up client-to-server signals
@@ -860,6 +879,9 @@ function CatchOrchestrator:handleCastRequest(player: Player, payload)
             return
     end
     if baitId ~= "basic_bait" then EconomyService:UseConsumable(player, baitId) end
+    if baitId ~= "basic_bait" and QuestService then
+        QuestService:UpdateQuestProgress(player, "use_bait", 1, { baitId = baitId })
+    end
     local power = payload.power
     if not power or power < 0 or power > 100 then
         self.Client.CastAcknowledged:Fire(player, {
@@ -906,8 +928,13 @@ function CatchOrchestrator:handleCastRequest(player: Player, payload)
     -- Select fish using server-seeded RNG
     local rng = createCastRng(player.UserId)
     local biome = payload.biome or "coral_shallows"
-    local timeOfDay = "day" -- Placeholder: TimeService:GetTimeOfDay()
-    local weather = "clear" -- Placeholder: WeatherService:GetWeather()
+    -- Read live environment state from the new environment services.
+    -- Captured at cast time so a phase/weather change mid-fight doesn't
+    -- invalidate the fish that was already selected (GDD 6.1).
+    local timeOfDay = TimeService and TimeService:GetCurrentTimeOfDay() or "day"
+    local weather = WeatherService and WeatherService:GetCurrentWeather(biome) or "clear"
+    state._timeOfDay = timeOfDay
+    state._weather = weather
 
     local fish = selectFish(biome, timeOfDay, weather, state._baitId, rodStats, rng)
 
