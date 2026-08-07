@@ -13,7 +13,27 @@ export type Biome = "coral_shallows" | "mangrove_marsh" | "kelp_forest"
 
 export type FishCollectionEntry = { caught: boolean, biggestWeight: number, shiny: boolean, firstCatchTimestamp: number }
 export type AquariumData = { tanks: { any } }
-export type DailyQuestData = { quests: { any }, progress: { [string]: number }, lastReset: number }
+
+-- Quest types supported by QuestService (GDD Appendix A)
+export type QuestType = "catch_species" | "catch_weight" | "sell_value" | "display_species"
+    | "catch_biome_time" | "catch_rarity" | "use_bait" | "catch_volume"
+    | "perfect_catch" | "visit_aquarium" | "catch_weather"
+
+-- A rolled daily quest instance
+export type DailyQuest = {
+    questId: string,             -- unique per player/day ("<template>_<dayKey>_<slot>")
+    title: string,               -- rendered quest text
+    questType: QuestType,
+    params: { [string]: any },   -- type-specific matching params (speciesId, biome, weather, ...)
+    target: number,              -- progress required to complete
+    rewardXp: number,
+    rewardCoins: number,
+    rewardItems: { [string]: number },  -- itemId -> count (bait ids for MVP)
+    completed: boolean,
+    claimed: boolean,
+}
+
+export type DailyQuestData = { quests: { DailyQuest }, progress: { [string]: number }, lastReset: number }
 
 export type FishInstance = {
     -- Identity
